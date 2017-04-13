@@ -1,0 +1,13 @@
+<div class='shortquestion'>
+    [[
+        include_once 'models/user.inc';
+        $questioner = findUserById($question['userId']);
+        $name = $questioner['firstName'] . ' ' . $questioner['lastName'];
+    ]]
+    <span class='title'><a href="@@question/view/{{$question['id']}}@@">{{$question['title']}}</a></span>
+    <span class='date'>Posted {{$question['postedOn']}} by <a href='@@user/view/{{$question['userId']}}@@'>{{$name}}</a></span>
+    [[ if (isset($question['tags']) && $question['tags'] != '') : ]]
+    <span class='tags'>Filed under: {{$question['tags']}}</span>
+    [[ endif; ]]
+    <span class='question'>[[ echo(substr($question['content'], 0, 200) . '...'); ]]</span>
+</div>
