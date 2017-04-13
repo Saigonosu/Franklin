@@ -1,0 +1,284 @@
+WEBD236 - MVC file processing in the TODO application
+
+This document relies on the Model2 sample application provided on
+the class web site.
+
+OK, let's try to clarify how the MVC model works, and how the various
+pieces work together in an MVC application.
+
+
+MODELS
+======
+Basically, your model files have functions to read/write/update the
+database (you decide the names of the functions but usually this
+includes findXXXbyID, name, etc, plus addXXX, deleteXXX, and
+updateXXX).  There is one model file for each table, and each
+uses the db.inc to get it's connection to the db.  Like this...
+
+    models/todo_model.inc
+    ---------------
+    <?php
+    include_once 'models/db.inc';
+
+    function model_findToDoById($id) {
+        ...
+    function model_findAllCurrentToDos() {
+        ...
+    function model_findAllDoneToDos() {
+        ...
+    function model_addToDo($description) {
+        ...
+    function model_updateToDo($id, $description, $done) {
+        ...
+    function model_deleteToDo($id) {
+        ...
+
+A useful convention that some people use is to prefix all model
+functions with the word model_ (ie model_findToDoById()) to
+make it clear in the controller when a model function is being called.
+
+
+VIEWS
+=====
+The views include the header, footer, and html/php files to
+render the todo list (index.inc) and specific todo edit and
+view pages, given appropriate data from the model.  NOTE
+that the data is passed in an array as the second parameter
+to the renderTemplate() call... the first parameter is the
+path to the view file.  You name the view files any way
+you like, but conventionally they are in the /views
+subdirectory, and named controller_action.inc (ie,
+todo_add.inc, etc).
+
+The views use a special syntax to include other files,
+echo values from the data passed, execute php code like
+for loops, and render paths to pages in our application.
+
+    views/index.inc (home page view)
+    --------------------------------
+    %% views/header.html %%
+    <h1>{{$title}}</h1>
+    <form action="@@todo/add@@" method="post">
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" />
+        <input type="submit" value="Add" />
+    </form>
+    <h2>Current To Do:</h2>
+    <ol>
+    [[ foreach ($todos as $todo) : ]]
+        <li>
+            <a href="@@todo/view/{{$todo['id']}}@@">[View]</a> ...
+        </li>
+    [[ endforeach; ]]
+    </ol>
+
+    <h2>Past To Do:</h2>
+    <ol>
+    [[ foreach ($dones as $todo) : ]]
+        <li>
+            <a href="@@todo/view/{{$todo['id']}}@@">[View]</a> ...
+        </li>
+    [[ endforeach; ]]
+    </ol>
+    %% views/footer.html %%
+
+Conceptually, the models and views are fairly straightforward
+and relatively easy to understand.
+
+
+CONTROLLERS
+===========
+The controller brings it all together... A function in the controller
+is called when a particular url is accessed... that function calls
+the model functions to get the data, passes that data to the correct
+view, etc.  Let's look at the actual processing and flow through
+the system.
+
+The .htaccess file redirects any request that is not for a specific
+directory or .php file to the urlrouter.php. So, if someone requests
+the top level of your site (by default, this looks for index.php),
+the .htaccess will run that /index.php from your application root.
+
+    /index.php
+    ----------
+    <?php
+    include_once 'include/util.inc';
+    redirect("index");
+    ?>
+
+BUT, that index.php just does a redirect to the /index url.
+NOTE there is no /index directory, and no file named index, so this
+request (when it comes back through) gets passed by .htaccess to the
+urlrouter.php file.
+
+Urlrouter.php parses the given url, and the first part (/index)
+gets converted to the /controllers/index.inc php file... there
+is no second part (the action), so a GET request (by default, ALL
+REQUESTS are GET unless it's a form that specifically requests POST)
+is built using the default action (index). SO, urlrouter builds a
+function call to get_index(), which is supposed to be in the
+controllers/index.inc file, and calls it, passing an array (in this
+case empty) with any remaining parameters from the command line.
+So, you have a directory "controllers", which has an index.inc
+php file, and that file has a function get_index($params)...
+
+    controllers/index.inc
+    ---------------------
+
+    <?php
+    include_once "include/util.inc";
+    include_once "models/todo_model.inc";
+    include_once "controllers/todo.inc";
+
+    function get_index($params) {
+        get_list($params);
+    }
+    ?>
+
+which calls the get_list() function from the todo controller passing
+the params that were passed to it (empty)... Let's look at that file
+in some detail...
+
+    controllers/todo.inc
+    --------------------
+    <?php
+    include_once "include/util.inc";
+    include_once "models/todo_model.inc";
+
+This function is called when the index or root of the site is accessed.
+It retrieves all the current todos and done todos, and passes that info
+to the index.inc view as an array (see above for index.inc).  This is
+a get function because the / request is a GET.
+
+    function get_list($params) {
+        $todos = findAllCurrentToDos();
+        $dones = model_findAllDoneToDos();
+        renderTemplate(
+            "views/index.inc",
+            array(
+                'title' => 'To Do List',
+                'todos' => $todos,
+                'dones' => $dones
+            )
+        );
+    }
+
+This function will be called by the url: /todo/view/#
+where # is the todo record id of the todo which we are to display.
+It accesses one parameter from the $params array, uses that to
+look up the todo-specific data, and passes that to the
+todo_view.inc file in the views subdirectory.  It is a GET
+function.
+
+    function get_view($params) {
+        $id = safeParam($params, 0, false);
+        if ($id === false) {
+            die("No todo id specified");
+        }
+
+        $todo = model_findToDoById($id);
+        if (!$todo) {
+            die("No todo with id $id found.");
+        }
+        renderTemplate(
+            "views/todo_view.inc",
+            array(
+                'title' => 'Viewing To Do',
+                'todo' => $todo
+            )
+        );
+    }
+
+This function will be called by the url: /todo/edit/#
+where # is the todo record id of the todo which will be edited.
+It accesses one parameter from the $params array, uses that to
+look up the todo-specific data, and passes that to the
+todo_edit.inc file in the views subdirectory.  This is a GET
+function because we are requesting the form to be loaded
+with data and presented to us.  The form processing when
+submitted will call the POST (post_edit) function.
+
+    function get_edit($params) {
+        $id = safeParam($params, 0, false);
+        if (!$id) {
+            die("No todo specified");
+        }
+
+        $todo = model_findToDoById($id);
+        if (!$todo) {
+            die("No todo found.");
+        }
+        renderTemplate(
+            "views/todo_edit.inc",
+            array(
+                'title' => 'Editing To Do',
+                'todo' => $todo
+            )
+        );
+    }
+
+This function will be called by the url: /todo/delete/#
+where # is the todo record id of the todo which will be deleted.
+It accesses one parameter from the $params array, and deletes that
+record.  This is a GET function because we are requesting the
+deletion of a record.... note that this can be DANGEROUS if we
+have no other controls in place to limit WHO may delete a record....
+
+    function get_delete($params) {
+        $id = safeParam($params, 0, false);
+        if (!$id) {
+            die("No todo specified");
+        }
+
+        $todo = findToDoById($id);
+        if (!$todo) {
+            die("No todo found.");
+        }
+        model_deleteToDo($id);
+        redirectRelative("index");
+    }
+
+This function will be called by the url: /todo/add which will be
+the target of the <form action=@@add@@ method="post"> in the
+index page to add a new TODO.  Since this is a POST call, the
+parameters will NOT be in the URL, but rather in the request.
+PHP will extract them and put them in the $_POST array.
+NOTE that we use htmlentities() to make any user input safe, add
+the todo and then redirect to the index page...  We could have
+redirected to view that specific todo as an option (/todo/view/#)
+
+    function post_add($params) {
+        if (!isset($_POST['description'])) {
+            die("no description given");
+        }
+        $description = htmlentities($_POST['description']);
+        model_addToDo($description);
+        redirectRelative("index");
+    }
+
+This function will be called by the url: /todo/update which will be
+the target of the <form action=@@update@@ method="post"> in the
+todo_edit view page to edit an existing TODO.  Since this is a POST call,
+the parameters will NOT be in the URL, but rather in the request.
+PHP will extract them and put them in the $_POST array.  The
+validate_present function makes sure they are present.  We then
+fetch the parameter values (they SHOULD be validated/made safe!)
+and pass them to the model's updateToDo() function...
+Note we then redirect to the VIEW of this todo....
+
+    function post_update($params) {
+        $errors = validate_present(array('id', 'description', 'done'));
+        if ($errors) {
+            die($errors);
+        }
+        $id = $_POST['id'];
+        $description = $_POST['description'];
+        $done = $_POST['done'];
+        model_updateToDo($id, $description, $done);
+        redirectRelative("todo/view/$id");
+    }
+
+
+I hope this helps to bring all the processing together...
+
+-Scott

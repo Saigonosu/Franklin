@@ -1,0 +1,111 @@
+Web Development 236
+Template Language Documentation
+
+
+VIEWS
+=====
+In WEBD236, the views and template language are used to 
+present data to the end user.  There is special syntax to
+include html fragments, echo PHP variable values, execute
+PHP code such as for, foreach and while loops, and 
+conditional statements, and build reliable URLs for links.
+
+The RenderTemplate() function (included in utils.inc) is used 
+to translate the webd236 template format to executable php code.  
+The first parameter to the RenderTemplate() function is the path 
+to the view template, which may be in any directory, and named 
+any way the user chooses. Conventionally, they are placed in the
+views/ subdirectory, and named for the controller and action 
+being handled (ie, views/controller_action.inc).
+
+The data to be used in the template is passed in an array as 
+the second parameter to the renderTemplate() call.  
+
+
+INCLUDES
+========
+Things enclosed in %% <path> %% are imported. Generally, these
+are HTML fragments, and the <path> is RELATIVE to the home directory
+of the application.  It should NOT include a leading slash (/)
+character.  
+
+Example:
+--------
+	%% views/header.html %%   
+	
+	would include the header.html file from the views subdirectory	
+	of the current application.
+
+
+VARIABLES
+=========
+Things enclosed in {{ <$var> }} are variables to echo to output.
+These are values which have been passed to RenderTemplate() in the
+second parameter (an array).  You must use the $ notation, and
+if the value passed is an array itself, use the [] notation to
+specify a specific value.
+
+Example:
+--------
+
+	{{ $record['field'] }} 
+	
+	would echo the 'field' value from the $record array passed 
+	as follows to renderTemplate('view path', array( 'record': $record ));
+	
+
+LINKS
+=====
+Things enclosed in @@ <URL> @@ are "relative" URLs.  A relative URL 
+does NOT start with a slash (/) character, and does NOT include a 
+protocol, or an app directory, or an app path.  The renderTemplate() 
+function will calculate all of those values based on the home location 
+of the application.  Generally, the 'relative' path is a URL of the 
+form "controller/action/params".  Params is optional, depending on 
+the function.  The POST/GET method will also be calculated and should
+NOT be part of the URL path.
+
+Example:
+--------
+
+	@@ controller/action/value @@ 
+	
+	would calculate the http://localhost/webd236/app path, and append
+	it to the 'controller/action/value' that you specified.
+	
+
+CONDITIONALS
+============
+Things enclosed in [[ <code> ]] are standard PHP code.  Theoretically, any
+valid PHP code can be placed between the double square brackets, though
+I STRONGLY RECOMMEND that you limit this to 
+	a) conditionals such as IF,
+	b) loops such as WHILE, DO-WHILE, FOR, or FOREACH, and 
+	c) limited other function calls (ensureLoggedIn) for specific purposes.  
+	
+Templates, in general, SHOULD NOT contain application or business logic.
+
+Example:
+--------
+
+	[[ foreach $records as $record: ]]
+	
+	<some html code and possibly {{ $var }} here>
+
+	[[ endforeach; ]]
+
+	
+CACHING
+=======
+renderTemplate() translates our template language (as specified above) into
+valid PHP code, following specific rules. The resulting PHP code is then 
+stored in the same directory as the template file, named cache_<original>.
+So, if your original template was 'views/todo_list.inc', then it will be
+saved in 'views/cache_todo_list.inc'.  IF you want to be sure you are using
+the template language correctly - take a look at the cache file to see
+how renderTemplate interpreted your template code.
+
+NOTE: very rarely, the cache_ files will interfere with changes you make
+to the templates.  IF that happens, just delete all the cache_ files in
+your views directory, so they will be generated new after you make changes
+to your templates.

@@ -1,0 +1,43 @@
+This is a sample worksheet that I use when I create a new project.  First,
+I list all of my URLs, and point them to the controller function that
+will eventually process the call to that URL.
+
+
+Top level of my URL
+-------------------
+http://localhost/myapp
+
+
+Needed URLS
+-----------
+
+sample			=> get_index()
+sample/edit/1	=> get_edit($id) => post_edit()
+sample/add		=> get_add() => post_add()
+sample/list		=> get_list()
+sample/view/1	=> get_view($id)
+sample/delete/1	=> get_delete($id)
+
+
+The above URLs map to functions in controllers/sample.inc file:
+
+    get_edit()
+    post_edit()
+    get_add()
+    post_add()
+    get_list()
+    get_view()
+    get_delete()
+
+
+Needed Models:
+--------------
+
+models/sample_model.inc:
+
+    model_findAllRecords()
+    model_findByID($id)
+    model_add($field1, $field2, $field3, ...)
+    model_edit($id, $field1, $field2, $field3, ...)
+    model_delete($id)
+
